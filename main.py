@@ -5,7 +5,7 @@ from os import path as os_path, mkdir as os_mkdir, remove as os_remove
 from datetime import datetime
 import sys, getopt
 
-app = Flask("Notebook")
+app = Flask("Champagne")
 Markdown(app)
 
 noteList = []
@@ -14,135 +14,142 @@ noteDir = "notes"
 
 # create note directory if it doesn't exist
 if not os_path.exists(noteDir):
-		os_mkdir(noteDir)
+    os_mkdir(noteDir)
 
 noteListFileName = os_path.join(noteDir, "notes.pkl")
 
 # check for existing file with note metadata
 if os_path.exists(noteListFileName):
-	with open(noteListFileName, 'rb') as notesFile:
-		noteList = pickle.load(notesFile)
+    with open(noteListFileName, 'rb') as notesFile:
+        noteList = pickle.load(notesFile)
 
 
 @app.route("/")
 def home():
-	return render_template("home.html", notes=noteList)
+    return render_template("home.html", notes=noteList)
 
 @app.route("/addNote")
 def addNote():
-	return render_template("noteForm.html", headerLabel="New Note", submitAction="createNote", cancelUrl=url_for('home'))
+    return render_template("noteForm.html", headerLabel="New Note", submitAction="createNote", cancelUrl=url_for('home'))
 
 @app.route("/createNote", methods=["post"])
 def createNote():
-	# get next note id
-	if len(noteList):
-		idList = [ int(i['id']) for i in noteList ]
-		noteId = str(max(idList)+1)
-	else:
-		noteId = "1"
+    # get next note id
+    if len(noteList):
+        idList = [ int(i['id']) for i in noteList ]
+        noteId = str(max(idList)+1)
+    else:
+        noteId = "1"
 
-	noteFileName = os_path.join(noteDir, noteId+".pkl")
-	
-	lastModifiedDate = datetime.now()
-	lastModifiedDate = lastModifiedDate.strftime("%d-%b-%Y %H:%M:%S")
-	
-	noteTitle = request.form['noteTitle']
-	noteMessage = request.form['noteMessage']
-	
-	note = {'id': noteId, 'title': noteTitle, 'lastModifiedDate': lastModifiedDate, 'message': noteMessage}
+    noteFileName = os_path.join(noteDir, noteId+".pkl")
 
-	# save the note
-	with open(noteFileName, 'wb') as noteFile:
-		pickle.dump(note, noteFile)
+    lastModifiedDate = datetime.now()
+    lastModifiedDate = lastModifiedDate.strftime("%d-%b-%Y %H:%M:%S")
 
-	# add metadata to list of notes for display on home page
-	noteList.append({'id': noteId, 'title': noteTitle, 'lastModifiedDate': lastModifiedDate})
-	
-	# save changes to the file containing the list of note metadata
-	with open(noteListFileName, 'wb') as notesFile:
-		pickle.dump(noteList, notesFile)
-		
-	return redirect(url_for('viewNote', noteId=noteId))
+    noteTitle = request.form['noteTitle']
+    noteMessage = request.form['noteMessage']
 
-@app.route("/viewNote/<noteId>")
+    note = {'id': noteId, 'title': noteTitle, 'lastModifiedDate': lastModifiedDate, 'message': noteMessage}
+
+    # save the note
+    with open(noteFileName, 'wb') as noteFile:
+        pickle.dump(note, noteFile)
+
+    # add metadata to list of notes for display on home page
+    noteList.append({'id': noteId, 'title': noteTitle, 'lastModifiedDate': lastModifiedDate})
+
+    # save changes to the file containing the list of note metadata
+    with open(noteListFileName, 'wb') as notesFile:
+        pickle.dump(noteList, notesFile)
+
+    return redirect(url_for('viewNote', noteId=noteId))
+
+@app.route("/viewNote/<int:noteId>")
 def viewNote(noteId):
-	noteFileName = os_path.join(noteDir, noteId+".pkl")
-	with open(noteFileName, 'rb') as noteFile:
-		note = pickle.load(noteFile)
-	
-	return render_template("viewNote.html", note=note, submitAction="/saveNote")
+    noteId = str(noteId)
+    noteFileName = os_path.join(noteDir, noteId+".pkl")
+    with open(noteFileName, 'rb') as noteFile:
+        note = pickle.load(noteFile)
 
-@app.route("/editNote/<noteId>")
+    return render_template("viewNote.html", note=note, submitAction="/saveNote")
+
+@app.route("/editNote/<int:noteId>")
 def editNote(noteId):
-	noteFileName = os_path.join(noteDir, noteId+".pkl")
-	with open(noteFileName, 'rb') as noteFile:
-		note = pickle.load(noteFile)
-	
-	cancelUrl = url_for('viewNote', noteId=noteId)
-	return render_template("noteForm.html", headerLabel="Edit Note", note=note, submitAction="/saveNote", cancelUrl=cancelUrl)
+    noteId = str(noteId)
+    noteFileName = os_path.join(noteDir, noteId+".pkl")
+    with open(noteFileName, 'rb') as noteFile:
+        note = pickle.load(noteFile)
+
+    cancelUrl = url_for('viewNote', noteId=noteId)
+    return render_template("noteForm.html", headerLabel="Edit Note", note=note, submitAction="/saveNote", cancelUrl=cancelUrl)
 
 @app.route("/saveNote", methods=["post"])
 def saveNote():
-	lastModifiedDate = datetime.now()
-	lastModifiedDate = lastModifiedDate.strftime("%d-%b-%Y %H:%M:%S")
-	
-	noteId = request.form['noteId']
-	noteTitle = request.form['noteTitle']
-	noteMessage = request.form['noteMessage']
-	
-	noteFileName = os_path.join(noteDir, noteId+".pkl")
-	
-	note = {'id': noteId, 'title': noteTitle, 'lastModifiedDate': lastModifiedDate, 'message': noteMessage}
+    lastModifiedDate = datetime.now()
+    lastModifiedDate = lastModifiedDate.strftime("%d-%b-%Y %H:%M:%S")
 
-	# save the note
-	with open(noteFileName, 'wb') as noteFile:
-		pickle.dump(note, noteFile)
+    noteId = str(int(request.form['noteId']))
+    noteTitle = request.form['noteTitle']
+    noteMessage = request.form['noteMessage']
 
-	# remove the old version of the note from the list of note metadata and add the new version
-	global noteList
-	newNoteList = [ i for i in noteList if not (i['id'] == noteId) ]
-	noteList = newNoteList
+    noteFileName = os_path.join(noteDir, noteId+".pkl")
 
-	# add metadata to list of notes for display on home page
-	noteList.append({'id': noteId, 'title': noteTitle, 'lastModifiedDate': lastModifiedDate})
-	
-	# save changes to the file containing the list of note metadata
-	with open(noteListFileName, 'wb') as notesFile:
-		pickle.dump(noteList, notesFile)
+    note = {'id': noteId, 'title': noteTitle, 'lastModifiedDate': lastModifiedDate, 'message': noteMessage}
 
-	return redirect(url_for('viewNote', noteId=noteId))
+    # save the note
+    with open(noteFileName, 'wb') as noteFile:
+        pickle.dump(note, noteFile)
 
-@app.route("/deleteNote/<noteId>")
+    # remove the old version of the note from the list of note metadata and add the new version
+    global noteList
+    newNoteList = [ i for i in noteList if not (i['id'] == noteId) ]
+    noteList = newNoteList
+
+    # add metadata to list of notes for display on home page
+    noteList.append({'id': noteId, 'title': noteTitle, 'lastModifiedDate': lastModifiedDate})
+
+    # save changes to the file containing the list of note metadata
+    with open(noteListFileName, 'wb') as notesFile:
+        pickle.dump(noteList, notesFile)
+
+    return redirect(url_for('viewNote', noteId=noteId))
+
+@app.route("/deleteNote/<int:noteId>")
 def deleteNote(noteId):
-	# delete the note file
-	noteFileName = os_path.join(noteDir, noteId+".pkl")
-	os_remove(noteFileName)
-	
-	# remove the note from the list of note metadata
-	global noteList
-	newNoteList = [ i for i in noteList if not (i['id'] == noteId) ]
-	noteList = newNoteList
-	
-	# save changes to the file containing the list of note metadata
-	with open(noteListFileName, 'wb') as notesFile:
-		pickle.dump(noteList, notesFile)
+    # delete the note file
+    noteFileName = os_path.join(noteDir, noteId+".pkl")
+    os_remove(noteFileName)
 
-	return redirect("/")
+    # remove the note from the list of note metadata
+    global noteList
+    newNoteList = [ i for i in noteList if not (i['id'] == noteId) ]
+    noteList = newNoteList
+
+    # save changes to the file containing the list of note metadata
+    with open(noteListFileName, 'wb') as notesFile:
+        pickle.dump(noteList, notesFile)
+
+    return redirect("/")
 
 if __name__ == "__main__":
-	debug = False
-	
-	try:
-		opts, args = getopt.getopt(sys.argv[1:], "h", ["debug"])
-	except getopt.GetoptError:
-		print('usage: main.py [--debug]')
-		sys.exit(2)
-	
-	for opt, arg in opts:
-		if opt == '-h':
-			print('usage: main.py [--debug]')
-			sys.exit()
-		elif opt == "--debug":
-			debug = True
+    debug = False
 
-	app.run(host="0.0.0.0", port="5000", debug=debug)
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "h:p:", ["debug"])
+    except getopt.GetoptError:
+        print('usage: main.py [-h 0.0.0.0] [-p 5000] [--debug]')
+        sys.exit(2)
+
+    port = "5000"
+    host = "0.0.0.0"
+    print(opts)
+    for opt, arg in opts:
+        if opt == '-p':
+            port = arg
+        elif opt == '-h':
+            host = arg
+        elif opt == "--debug":
+            debug = True
+
+    app.run(host=host, port=port, debug=debug)
+
