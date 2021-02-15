@@ -5,6 +5,7 @@ from datetime import datetime
 import sys, getopt
 import boto3
 from botocore.config import Config
+import pprint
 
 app = Flask("Champagne")
 Markdown(app)
@@ -23,15 +24,18 @@ Markdown(app)
 #    with open(noteListFileName, 'rb') as notesFile:
 #        noteList = pickle.load(notesFile)
 
+dynamodb =  boto3.client('dynamodb', config=Config(region_name='us-east-1'))
+pp = pprint.PrettyPrinter(indent=4)
 response = dynamodb.scan(TableName='notes')
+response = response['Items']
 if response is not None:
-    pp.print(response['Items'])
+    pp.pprint(response)
 else:
     pass
 
 @app.route("/")
 def home():
-    return render_template("home.html", notes=response)
+    return render_template("home.html", note=response)
 
 @app.route("/addNote")
 def addNote():
@@ -40,10 +44,9 @@ def addNote():
 @app.route("/createNote", methods=["post"])
 def createNote():
     # get next note id
-    if len(noteList):
-        idList = [ int(i['id']) for i in noteList ]
+    if len(response):
+        idList = [ int(i['noteid']['N']) for i in response]
         noteId = str(max(idList)+1)
-        noteId = "'" + noteId + "'"
     else:
         noteId = "1"
 
@@ -54,7 +57,7 @@ def createNote():
 
     noteTitle = request.form['noteTitle']
     noteMessage = request.form['noteMessage']
-    dynamodb.put_item(TableName='notes', Item{'noteid': {'N' : noteId}, 'lastModifiedDate': {'N': lastModifiedDate}, 'message': {'S': noteMessage}})
+    dynamodb.put_item(TableName='notes', Item={'noteid': {'N' : noteId},'noteTitle': {'S': noteTitle}, 'lastModifiedDate': {'S': lastModifiedDate}, 'message': {'S': noteMessage}})
     #note = {'id': noteId, 'title': noteTitle, 'lastModifiedDate': lastModifiedDate, 'message': noteMessage}
 
     # save the note
@@ -63,20 +66,24 @@ def createNote():
 
     # add metadata to list of notes for display on home page
 
-    noteList.append({'id': noteId, 'title': noteTitle, 'lastModifiedDate': lastModifiedDate})
+#    noteList.append({'id': noteId, 'title': noteTitle, 'lastModifiedDate': lastModifiedDate})
 
     # save changes to the file containing the list of note metadata
-    with open(noteListFileName, 'wb') as notesFile:
-        pickle.dump(noteList, notesFile)
+    #with open(noteListFileName, 'wb') as notesFile:
+    #    pickle.dump(noteList, notesFile)
 
     return redirect(url_for('viewNote', noteId=noteId))
 
 @app.route("/viewNote/<int:noteId>")
 def viewNote(noteId):
     noteId = str(noteId)
-    noteFileName = os_path.join(noteDir, noteId+".pkl")
-    with open(noteFileName, 'rb') as noteFile:
-        note = pickle.load(noteFile)
+    note = dynamodb.get_item(TableName='notes', Key={'noteid': {'N': noteId}})
+    pp.pprint(note)
+    note = note['Item']
+    pp.pprint(note)
+#    noteFileName = os_path.join(noteDir, noteId+".pkl")
+#    with open(noteFileName, 'rb') as noteFile:
+#        note = pickle.load(noteFile)
 
     return render_template("viewNote.html", note=note, submitAction="/saveNote")
 @app.route("/editNote/<int:noteId>")

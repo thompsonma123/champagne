@@ -2,13 +2,13 @@
 
 {% block header %}
 	<h1>My Notes</h1>
-	
+
 	<a class="btn btn-primary d-table my-auto" role="button" href="/addNote">New Note</a>
 {% endblock %}
 
 {% block content %}
 	<div class="row mt-3">
-		{% if notes|length %}
+		{% if note|length %}
 			<div class="col-xs-12 col-lg-6 mx-auto">
 				<div class="table-responsive">
 					<table class="table">
@@ -20,12 +20,12 @@
 							</tr>
 						</thead>
 						<tbody>
-							{% for note in notes %}
+							{% for notes in note %}
 								<tr class="align-middle">
-									<td>{{ note['title'] }}</td>
-									<td>{{ note['lastModifiedDate'] }}</td>
+									<td>{{ notes['noteTitle']['S'] }}</td>
+									<td>{{ notes['lastModifiedDate']['S'] }}</td>
 									<td>
-										<a class="btn btn-primary" role="button" href="{{ url_for('viewNote', noteId=note['id']) }}">View</a>
+										<a class="btn btn-primary" role="button" href="{{ url_for('viewNote', noteId=notes['noteid']['N']) }}">View</a>
 									</td>
 								</tr>
 							{% endfor %}
